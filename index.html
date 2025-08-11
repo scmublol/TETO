@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TETO Word of the Day with Background Sound</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    display: flex;
+    justify-content: center; /* horizontal center */
+    align-items: center;     /* vertical center */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #fff;
+    background: transparent;
+    overflow: hidden;
+    position: relative;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: url('https://c.tenor.com/Z_jHYKTiYFAAAAAC/tenor.gif') no-repeat center center / cover;
+    filter: brightness(0.3);
+    z-index: -1;
+    animation: bgMove 30s linear infinite;
+  }
+  @keyframes bgMove {
+    0% { background-position: center top; }
+    50% { background-position: center bottom; }
+    100% { background-position: center top; }
+  }
+  .top-overlay, .bottom-overlay {
+    position: fixed;
+    left: 0; right: 0;
+    background: transparent;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .top-overlay { top: 0; height: 25vh; }
+  .bottom-overlay { bottom: 0; height: 25vh; }
+  .container {
+    max-width: 400px;
+    padding: 2rem;
+    background: rgba(0,0,0,0.7);
+    border-radius: 12px;
+    box-shadow: 0 0 20px #4fd1c5;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    min-height: 200px;
+    position: relative;
+    z-index: 1;
+  }
+  #tetoBtn, #playAudioBtn {
+    font-size: 1.5rem;
+    padding: 1rem 2rem;
+    border: 2px solid #4fd1c5;
+    border-radius: 12px;
+    background: transparent;
+    color: #4fd1c5;
+    cursor: pointer;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    user-select: none;
+    outline: none;
+    margin-top: 1rem;
+  }
+  #tetoBtn:disabled {
+    background-color: #222;
+    border-color: #555;
+    color: #555;
+    cursor: not-allowed;
+  }
+  #tetoBtn:hover:not(:disabled), #playAudioBtn:hover {
+    background-color: #4fd1c5;
+    color: black;
+  }
+  #tetoBtn:active:not(:disabled), #playAudioBtn:active {
+    transform: scale(0.95);
+  }
+  #wordDisplay {
+    margin-top: 1rem;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #4fd1c5;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+    min-height: 3.5rem;
+  }
+  #wordDisplay.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  @keyframes popIn {
+    0% { opacity: 0; transform: scale(0.3) translateY(20px); }
+    60% { opacity: 1; transform: scale(1.1) translateY(0); }
+    100% { transform: scale(1) translateY(0); }
+  }
+  #wordDisplay.animate { animation: popIn 0.6s forwards; }
+  #definition {
+    margin-top: 1rem;
+    font-size: 1.1rem;
+    color: #a0e7e5;
+    max-height: 10rem;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+  <div class="top-overlay"></div>
+  <div class="container">
+    <button id="tetoBtn">TETO Word of the Day</button>
+    <div id="wordDisplay"></div>
+    <div id="definition"></div>
+    <button id="playAudioBtn" style="display:none;">Play Sound</button>
+  </div>
+  <div class="bottom-overlay"></div>
+
+  <audio id="backgroundAudio" loop>
+    <source src="https://tuna.voicemod.net/sound/71a18e80-9489-43ac-9cdc-331661a15b6d" type="audio/mpeg" />
+    Your browser does not support the audio element.
+  </audio>
+
+<script>
+  const tetoBtn = document.getElementById('tetoBtn');
+  const wordDisplay = document.getElementById('wordDisplay');
+  const defDisplay = document.getElementById('definition');
+  const playAudioBtn = document.getElementById('playAudioBtn');
+  const backgroundAudio = document.getElementById('backgroundAudio');
+
+  backgroundAudio.volume = 0.5;
+  backgroundAudio.muted = false;
+
+  function setDailyWord(word, definition) {
+    const today = new Date().toISOString().slice(0,10);
+    localStorage.setItem('tetoWord', JSON.stringify({date: today, word, definition}));
+  }
+
+  function getDailyWord() {
+    const data = localStorage.getItem('tetoWord');
+    if (!data) return null;
+    const parsed = JSON.parse(data);
+    const today = new Date().toISOString().slice(0,10);
+    if (parsed.date === today) return parsed;
+    return null;
+  }
+
+  const fallbackWords = [
+    {word: "Teto", definition: "A fun nonsense word for daily inspiration."},
+    {word: "Tetron", definition: "An imaginary TETO-related term."},
+    {word: "Tetopia", definition: "A mythical land of TETO adventures."},
+    {word: "Tetoluxe", definition: "Something stylish with TETO vibes."},
+    {word: "Tetovate", definition: "To innovate with TETO spirit."}
+  ];
+
+  async function fetchRandomWikiWord() {
+    try {
+      const randomRes = await fetch('https://en.wikipedia.org/w/api.php?action=query&format=json&list=random&rnlimit=1&rnnamespace=0&origin=*');
+      if (!randomRes.ok) throw new Error('Failed to get random article');
+      const randomData = await randomRes.json();
+      const page = randomData.query.random[0];
+      const pageId = page.id;
+      const title = page.title;
+
+      const extractRes = await fetch(`https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=1&explaintext=1&pageids=${pageId}&origin=*`);
+      if (!extractRes.ok) throw new Error('Failed to get article extract');
+      const extractData = await extractRes.json();
+      const extract = extractData.query.pages[pageId].extract || "No summary available.";
+
+      return { word: title, definition: extract };
+    } catch (e) {
+      const fallback = fallbackWords[Math.floor(Math.random() * fallbackWords.length)];
+      return fallback;
+    }
+  }
+
+  function showWord(wordObj) {
+    wordDisplay.textContent = wordObj.word;
+    defDisplay.textContent = wordObj.definition;
+    wordDisplay.classList.add('show', 'animate');
+    tetoBtn.disabled = true;
+    tetoBtn.textContent = "Come back tomorrow!";
+  }
+
+  playAudioBtn.addEventListener('click', async () => {
+    try {
+      await backgroundAudio.play();
+      playAudioBtn.style.display = 'none';
+    } catch {
+      alert("Audio playback failed. Please interact with the page.");
+    }
+  });
+
+  tetoBtn.addEventListener('click', async () => {
+    tetoBtn.disabled = true;
+    tetoBtn.textContent = "Loading...";
+
+    try {
+      await backgroundAudio.play();
+    } catch (e) {
+      // Show fallback play button if audio fails
+      playAudioBtn.style.display = 'inline-block';
+    }
+
+    const wordObj = await fetchRandomWikiWord();
+    setDailyWord(wordObj.word, wordObj.definition);
+    showWord(wordObj);
+  });
+
+  async function loadWord() {
+    const daily = getDailyWord();
+    if (daily) {
+      showWord(daily);
+      tetoBtn.disabled = true;
+      tetoBtn.textContent = "Come back tomorrow!";
+    } else {
+      tetoBtn.disabled = false;
+      tetoBtn.textContent = "TETO Word of the Day";
+    }
+  }
+
+  loadWord();
+</script>
+</body>
+</html>
