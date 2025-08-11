@@ -54,7 +54,7 @@
     position: relative;
     z-index: 1;
   }
-  #tetoBtn, #playAudioBtn {
+  #tetoBtn {
     font-size: 1.5rem;
     padding: 1rem 2rem;
     border: 2px solid #4fd1c5;
@@ -73,11 +73,11 @@
     color: #555;
     cursor: not-allowed;
   }
-  #tetoBtn:hover:not(:disabled), #playAudioBtn:hover {
+  #tetoBtn:hover:not(:disabled) {
     background-color: #4fd1c5;
     color: black;
   }
-  #tetoBtn:active:not(:disabled), #playAudioBtn:active {
+  #tetoBtn:active:not(:disabled) {
     transform: scale(0.95);
   }
   #wordDisplay {
@@ -115,15 +115,14 @@
 
   <div class="top-overlay"></div>
   <div class="container">
-    <button id="tetoBtn">TETO Word of the Day</button>
+    <button id="tetoBtn">Show TETO Word of the Day</button>
     <div id="wordDisplay"></div>
     <div id="definition"></div>
-    <button id="playAudioBtn" style="display:none;">Play Sound</button>
   </div>
   <div class="bottom-overlay"></div>
 
   <audio id="backgroundAudio" loop>
-    <source src="https://tuna.voicemod.net/sound/71a18e80-9489-43ac-9cdc-331661a15b6d" type="audio/mpeg" />
+    <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg" />
     Your browser does not support the audio element.
   </audio>
 
@@ -131,11 +130,9 @@
   const tetoBtn = document.getElementById('tetoBtn');
   const wordDisplay = document.getElementById('wordDisplay');
   const defDisplay = document.getElementById('definition');
-  const playAudioBtn = document.getElementById('playAudioBtn');
   const backgroundAudio = document.getElementById('backgroundAudio');
 
   backgroundAudio.volume = 0.5;
-  backgroundAudio.muted = false;
 
   function setDailyWord(word, definition) {
     const today = new Date().toISOString().slice(0,10);
@@ -188,15 +185,6 @@
     tetoBtn.textContent = "Come back tomorrow!";
   }
 
-  playAudioBtn.addEventListener('click', async () => {
-    try {
-      await backgroundAudio.play();
-      playAudioBtn.style.display = 'none';
-    } catch {
-      alert("Audio playback failed. Please interact with the page.");
-    }
-  });
-
   tetoBtn.addEventListener('click', async () => {
     tetoBtn.disabled = true;
     tetoBtn.textContent = "Loading...";
@@ -204,8 +192,7 @@
     try {
       await backgroundAudio.play();
     } catch (e) {
-      // Show fallback play button if audio fails
-      playAudioBtn.style.display = 'inline-block';
+      // If audio play fails (user not interacted), just ignore
     }
 
     const wordObj = await fetchRandomWikiWord();
@@ -213,7 +200,8 @@
     showWord(wordObj);
   });
 
-  async function loadWord() {
+  // Load daily word on page load if available
+  (function loadWord() {
     const daily = getDailyWord();
     if (daily) {
       showWord(daily);
@@ -221,11 +209,10 @@
       tetoBtn.textContent = "Come back tomorrow!";
     } else {
       tetoBtn.disabled = false;
-      tetoBtn.textContent = "TETO Word of the Day";
+      tetoBtn.textContent = "Show TETO Word of the Day";
     }
-  }
-
-  loadWord();
+  })();
 </script>
+
 </body>
 </html>
